@@ -11,3 +11,4 @@ Just clone this repository, and open the ShaderPlayer project in Unity. If you o
 
 The depth data is currently stored in a .txt file. When we use the pointcloud shader, we see the following:
 
+![pointcloud](https://github.com/ericrosenbrown/pointcloud-shader/blob/main/example_pointcloud.PNG)
