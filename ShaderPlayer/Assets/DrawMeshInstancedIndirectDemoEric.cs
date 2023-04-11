@@ -111,8 +111,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
             }
             else
             {
-                //position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]);
-                position = new Vector3(x* size_scale, y* size_scale, depth_ar[depth_idx]*100* size_scale);
+                position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]);
+                //position = new Vector3(x* size_scale, y* size_scale, depth_ar[depth_idx]*100* size_scale);
             }
 
             Quaternion rotation = Quaternion.Euler(0,0,0);
@@ -139,7 +139,7 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
         float FX = (float) 552.029101;
         float FY = (float) 552.029101;
         
-        float x =  (i - CX) * depth / FX;
+        float x =  (j - CX) * depth / FX;
         float y = (i - CY) * depth / FY;
 
         Vector3 ret = new Vector3(x, y, depth);
