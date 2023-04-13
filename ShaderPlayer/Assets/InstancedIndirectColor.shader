@@ -24,6 +24,7 @@ Shader "Custom/InstancedIndirectColor" {
                 float4 color;
             };
 
+
             StructuredBuffer<MeshProperties> _Properties;
 
             v2f vert(appdata_t i, uint instanceID: SV_InstanceID) {

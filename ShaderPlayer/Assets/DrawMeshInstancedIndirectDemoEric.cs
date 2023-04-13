@@ -11,17 +11,20 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
     public Material material;
 
+    public ComputeShader compute;
     private ComputeBuffer meshPropertiesBuffer;
     private ComputeBuffer argsBuffer;
 
     private Mesh mesh;
     private Bounds bounds;
 
+    private int total_population;
     private int population;
+    public int downsample;
     private int height;
     private int width;
 
-    private float size_scale; //hack to current pointcloud viewing
+    public float size_scale; //hack to current pointcloud viewing
 
     private float[] depth_ar;
 
@@ -42,10 +45,11 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
     private void Setup()
     {
-        size_scale = 0.002f;
+        //size_scale = 0.002f;
         width = 640;
         height = 480;
-        population = height * width;
+        total_population = height * width;
+        population = (int) (total_population / downsample);
         Mesh mesh = CreateQuad(size_scale, size_scale,size_scale);
         //Mesh mesh = CreateQuad(0.01f,0.01f);
         this.mesh = mesh;
@@ -86,40 +90,35 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
         int x;
         int y;
         int depth_idx;
-        for (int i = 0; i < population; i++)
+        int i;
+        for (int pop_i = 0; pop_i < population; pop_i++)
         {
+            i = pop_i * downsample;
             MeshProperties props = new MeshProperties();
             x = i % (width);
             y = (int)Mathf.Floor(i / width);
             depth_idx = (width * (height - y - 1)) + x;
 
-            Vector3 start_position;
+            Vector3 position;
 
             if (depth_ar[depth_idx] == 0)
             {
-                start_position = new Vector3(10000, 1000, 1000);
+                position = new Vector3(10000, 1000, 1000);
 
                 props.mat = Matrix4x4.TRS(new Vector3(0,0,0), Quaternion.Euler(0,0,0), Vector3.one * 0);
                 //props.color = Color.Lerp(Color.red, Color.blue, Random.value);
 
                 props.color = new Vector4(0, 0, 0, 0);
 
-                properties[i] = props;
+                properties[pop_i] = props;
                 continue;
 
             }
             else
             {
-                start_position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]); //TODO: Get 4x4 matrix instead
+                position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]); //TODO: Get 4x4 matrix instead
             }
 
-            Quaternion go_rotation = transform.rotation;
-            Matrix4x4 mat_go = Matrix4x4.TRS(new Vector3(0, 0, 0), go_rotation, new Vector3(1, 1, 1));
-
-            Vector4 pos4 = new Vector4(start_position.x, start_position.y, start_position.z, 1);
-            Vector4 rotated_pos4 = mat_go * pos4; //TODO: move to shader
-
-            Vector3 position = (Vector3)rotated_pos4 + transform.position; //TODO: Move to shader
             Quaternion rotation = Quaternion.Euler(0, 0, 0);
             Vector3 scale = Vector3.one * 1;
 
@@ -128,7 +127,7 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
             props.color = color_image.GetPixel(x, y);
 
-            properties[i] = props;
+            properties[pop_i] = props;
         }
 
         return (properties);
@@ -136,6 +135,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
     private void InitializeBuffers()
     {
+        int kernel = compute.FindKernel("CSMain");
+
         // Argument buffer used by DrawMeshInstancedIndirect.
         uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
         // Arguments for drawing mesh.
@@ -153,13 +154,37 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
         meshPropertiesBuffer = new ComputeBuffer(population, MeshProperties.Size());
         meshPropertiesBuffer.SetData(GetProperties());
-        material.SetBuffer("_Properties", meshPropertiesBuffer);
+
+        SetProperties();
+        SetGOPosition();
+    }
+
+    private void SetGOPosition()
+    {
+        compute.SetMatrix("_GOPose", Matrix4x4.TRS(transform.position, transform.rotation, new Vector3(1, 1, 1)));
     }
 
     private void SetProperties()
     {
+        int kernel = compute.FindKernel("CSMain");
+
         meshPropertiesBuffer.SetData(GetProperties());
         material.SetBuffer("_Properties", meshPropertiesBuffer);
+        compute.SetBuffer(kernel, "_Properties", meshPropertiesBuffer);
+    }
+
+    private void Update()
+    {
+        int kernel = compute.FindKernel("CSMain");
+        //SetProperties enables point cloud to move when game object moves, but is laggier due to redrawing. Just comment it out for performance improvement;
+        SetProperties();
+        SetGOPosition();
+
+        // We used to just be able to use `population` here, but it looks like a Unity update imposed a thread limit (65535) on my device.
+        // This is probably for the best, but we have to do some more calculation.  Divide population by numthreads.x (declared in compute shader).
+        compute.Dispatch(kernel, Mathf.CeilToInt(population / 64f), 1, 1);
+
+        Graphics.DrawMeshInstancedIndirect(mesh, 0, material, bounds, argsBuffer);
     }
 
     private Vector3 pixel_to_vision_frame(int i,int j, float depth)
@@ -254,12 +279,6 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
         Setup();
     }
 
-    private void Update()
-    {
-        //SetProperties enables point cloud to move when game object moves, but is laggier due to redrawing. Just comment it out for performance improvement;
-        SetProperties();
-        Graphics.DrawMeshInstancedIndirect(mesh, 0, material, bounds, argsBuffer);
-    }
 
     private void OnDisable()
     {
