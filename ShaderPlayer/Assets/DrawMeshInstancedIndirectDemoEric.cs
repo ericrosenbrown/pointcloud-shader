@@ -74,6 +74,7 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
         bounds = new Bounds(transform.position, Vector3.one * (range + 1));
 
         InitializeBuffers();
+
     }
 
     private MeshProperties[] GetProperties()
@@ -97,20 +98,28 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
             if (depth_ar[depth_idx] == 0)
             {
                 start_position = new Vector3(10000, 1000, 1000);
+
+                props.mat = Matrix4x4.TRS(new Vector3(0,0,0), Quaternion.Euler(0,0,0), Vector3.one * 0);
+                //props.color = Color.Lerp(Color.red, Color.blue, Random.value);
+
+                props.color = new Vector4(0, 0, 0, 0);
+
+                properties[i] = props;
+                continue;
+
             }
             else
             {
-                start_position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]);
-                //position = new Vector3(x* size_scale, y* size_scale, depth_ar[depth_idx]*100* size_scale);
+                start_position = pixel_to_vision_frame(x, y, depth_ar[depth_idx]); //TODO: Get 4x4 matrix instead
             }
 
             Quaternion go_rotation = transform.rotation;
             Matrix4x4 mat_go = Matrix4x4.TRS(new Vector3(0, 0, 0), go_rotation, new Vector3(1, 1, 1));
 
             Vector4 pos4 = new Vector4(start_position.x, start_position.y, start_position.z, 1);
-            Vector4 rotated_pos4 = mat_go * pos4;
+            Vector4 rotated_pos4 = mat_go * pos4; //TODO: move to shader
 
-            Vector3 position = (Vector3)rotated_pos4 + transform.position;
+            Vector3 position = (Vector3)rotated_pos4 + transform.position; //TODO: Move to shader
             Quaternion rotation = Quaternion.Euler(0, 0, 0);
             Vector3 scale = Vector3.one * 1;
 
