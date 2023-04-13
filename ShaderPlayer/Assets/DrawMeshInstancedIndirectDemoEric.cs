@@ -18,6 +18,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
     private Mesh mesh;
     private Bounds bounds;
 
+    public float noise_range;
+
     private int total_population;
     private int population;
     public int downsample;
@@ -121,8 +123,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
             Quaternion rotation = Quaternion.Euler(0, 0, 0);
             Vector3 scale = Vector3.one * 1;
-
-            props.mat = Matrix4x4.TRS(position, rotation, scale);
+            Vector3 some_noise = new Vector3(Random.Range(-noise_range, noise_range), Random.Range(-noise_range, noise_range), Random.Range(-noise_range, noise_range));
+            props.mat = Matrix4x4.TRS(position+some_noise, rotation, scale);
             //props.color = Color.Lerp(Color.red, Color.blue, Random.value);
 
             props.color = color_image.GetPixel(x, y);
