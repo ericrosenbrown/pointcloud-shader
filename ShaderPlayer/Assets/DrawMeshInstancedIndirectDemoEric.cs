@@ -76,19 +76,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
         InitializeBuffers();
     }
 
-    private void InitializeBuffers()
+    private MeshProperties[] GetProperties()
     {
-        // Argument buffer used by DrawMeshInstancedIndirect.
-        uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
-        // Arguments for drawing mesh.
-        // 0 == number of triangle indices, 1 == population, others are only relevant if drawing submeshes.
-        args[0] = (uint)mesh.GetIndexCount(0);
-        args[1] = (uint)population;
-        args[2] = (uint)mesh.GetIndexStart(0);
-        args[3] = (uint)mesh.GetBaseVertex(0);
-        argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
-        argsBuffer.SetData(args);
-
         // Initialize buffer with the given population.
         MeshProperties[] properties = new MeshProperties[population];
 
@@ -107,7 +96,7 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
             if (depth_ar[depth_idx] == 0)
             {
-                start_position = new Vector3(10000,1000,1000);
+                start_position = new Vector3(10000, 1000, 1000);
             }
             else
             {
@@ -116,14 +105,14 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
             }
 
             Quaternion go_rotation = transform.rotation;
-            Matrix4x4 mat_go = Matrix4x4.TRS(new Vector3(0,0,0),go_rotation,new Vector3(1,1,1));
+            Matrix4x4 mat_go = Matrix4x4.TRS(new Vector3(0, 0, 0), go_rotation, new Vector3(1, 1, 1));
 
             Vector4 pos4 = new Vector4(start_position.x, start_position.y, start_position.z, 1);
             Vector4 rotated_pos4 = mat_go * pos4;
 
-            Vector3 position = rotated_pos4;
+            Vector3 position = (Vector3)rotated_pos4 + transform.position;
             Quaternion rotation = Quaternion.Euler(0, 0, 0);
-            Vector3 scale = Vector3.one*1;
+            Vector3 scale = Vector3.one * 1;
 
             props.mat = Matrix4x4.TRS(position, rotation, scale);
             //props.color = Color.Lerp(Color.red, Color.blue, Random.value);
@@ -133,8 +122,34 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
             properties[i] = props;
         }
 
+        return (properties);
+    }
+
+    private void InitializeBuffers()
+    {
+        // Argument buffer used by DrawMeshInstancedIndirect.
+        uint[] args = new uint[5] { 0, 0, 0, 0, 0 };
+        // Arguments for drawing mesh.
+        // 0 == number of triangle indices, 1 == population, others are only relevant if drawing submeshes.
+        args[0] = (uint)mesh.GetIndexCount(0);
+        args[1] = (uint)population;
+        args[2] = (uint)mesh.GetIndexStart(0);
+        args[3] = (uint)mesh.GetBaseVertex(0);
+        argsBuffer = new ComputeBuffer(1, args.Length * sizeof(uint), ComputeBufferType.IndirectArguments);
+        argsBuffer.SetData(args);
+
+        // Initialize buffer with the given population.
+        MeshProperties[] properties = new MeshProperties[population];
+
+
         meshPropertiesBuffer = new ComputeBuffer(population, MeshProperties.Size());
-        meshPropertiesBuffer.SetData(properties);
+        meshPropertiesBuffer.SetData(GetProperties());
+        material.SetBuffer("_Properties", meshPropertiesBuffer);
+    }
+
+    private void SetProperties()
+    {
+        meshPropertiesBuffer.SetData(GetProperties());
         material.SetBuffer("_Properties", meshPropertiesBuffer);
     }
 
@@ -232,6 +247,8 @@ public class DrawMeshInstancedIndirectDemoEric : MonoBehaviour
 
     private void Update()
     {
+        //SetProperties enables point cloud to move when game object moves, but is laggier due to redrawing. Just comment it out for performance improvement;
+        SetProperties();
         Graphics.DrawMeshInstancedIndirect(mesh, 0, material, bounds, argsBuffer);
     }
 
